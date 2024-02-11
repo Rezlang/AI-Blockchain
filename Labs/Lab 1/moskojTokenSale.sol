@@ -44,6 +44,7 @@ contract TokenSale is ReentrancyGuard {
 
     // Allow the owner to withdraw ETH
     function withdrawETH() external onlyOwner {
+        require (address(this).balance > 0, "Balance is 0");
         payable(owner).transfer(address(this).balance);
     }
 

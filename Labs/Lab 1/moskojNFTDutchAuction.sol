@@ -16,10 +16,12 @@ contract NFTDutchAuction{
     uint256 public minPrice; // price that the auction will stop
     bool public acceptingBids; // auction accepts bids if true
     address public owner;
+    bool public tokenCanBeSold;
     
     constructor() {
         owner = msg.sender;
         acceptingBids = false;
+        tokenCanBeSold = false;
     }
 
     modifier ownerOnly() {
@@ -33,6 +35,7 @@ contract NFTDutchAuction{
         require(token.ownerOf(_tokenID) == msg.sender || token.getApproved(_tokenID) == address(this), "Caller must own the token or be approved");
         token.transferFrom(msg.sender, address(this), _tokenID);
         tokenID = _tokenID;
+        tokenCanBeSold = true;
     }
 
     function setStartPrice(uint256 _startPrice) public ownerOnly {
@@ -65,13 +68,15 @@ contract NFTDutchAuction{
     }
 
     function startAuction() public ownerOnly{
+        require (tokenCanBeSold, ("Token cannot be sold"));
         startTime = block.timestamp;
         acceptingBids = true;
     }
 
     function buyNow() public payable {
-        require(acceptingBids, "Auction is closed");
         uint256 currentPrice = checkCurrentPrice();
+        require(acceptingBids, "Auction is closed");
+        require(tokenCanBeSold, "Token cannot be sold!");
         require(msg.value >= currentPrice);
         
         // Calculate any excess ETH sent and refund it
@@ -80,6 +85,8 @@ contract NFTDutchAuction{
             payable(msg.sender).transfer(excessEth);
         }
         token.transferFrom(address(this), msg.sender, tokenID);
+        tokenCanBeSold = false;
+        acceptingBids = false;
     }
 
     function endAuction() public ownerOnly {

@@ -31,10 +31,12 @@ contract MyWallet {
     }
 
     constructor(address[] memory _guardians) {
+        // Owner must add allowances after creation via setAllowance()
         require(_guardians.length == 5, "Must initialize with 5 guardians.");
         owner = msg.sender;
         for (uint i = 0; i < _guardians.length; i++) {
             require(_guardians[i] != address(0), "Guardian address cannot be zero.");
+            require(_guardians[i] != owner, "Owner cannot be guardian");
             guardians.push(_guardians[i]);
             isGuardian[_guardians[i]] = true;
         }
@@ -44,16 +46,23 @@ contract MyWallet {
 
     function spend(address payable _to, uint256 _amount) public onlyOwner {
         require(_amount <= address(this).balance, "Insufficient balance.");
-        require(_amount <= allowances[_to] || allowances[_to] == 0, "Amount exceeds allowance.");
+        require(_amount <= allowances[_to], "Amount exceeds allowance.");
         if (allowances[_to] > 0) {
             allowances[_to] -= _amount;
         }
         _to.transfer(_amount);
     }
 
+    function getAllowance(address person) public view returns (uint256) {
+        return allowances[person];
+    }
+
     function proposeNewOwner(address _newOwner) public onlyGuardian {
         require(_newOwner != address(0), "New owner cannot be zero address.");
         require(_newOwner != owner, "New owner must be different.");
+        for (uint i = 0; i < guardians.length; i++) {
+            require(guardians[i] != _newOwner, "New owner cannot be a guardian.");
+        }
         
         // If this is a new proposal or the same as the current one, reset/increment votes
         if (currentProposal.proposedNewOwner != _newOwner) {
@@ -85,6 +94,7 @@ contract MyWallet {
     }
 
     function addOrRemoveGuardian(address _guardian, bool _isAdding) public onlyOwner {
+        //Undefined behaviour when the total number of guardians is not 5.
         require(_guardian != address(0), "Guardian address cannot be zero.");
         require(isGuardian[_guardian] != _isAdding, "Guardian status already set.");
         
